@@ -7,6 +7,7 @@ const paperlessService = require('./paperlessService');
 class RagService {
   constructor() {
     this.baseUrl = process.env.RAG_SERVICE_URL || 'http://localhost:8000';
+    this.paperlessBaseUrl = process.env.PAPERLESS_BASE_URL || 'http://localhost:8080';
   }
 
   /**
@@ -117,9 +118,15 @@ class RagService {
         answer = "An error occurred while generating an answer. Please try again later.";
       }
       
+      // 4. Modify sources to include the link to the original Paperless document
+      const sourcesWithLinks = sources.map(source => ({
+        ...source,
+        link: source.doc_id ? `${this.paperlessBaseUrl}/documents/${source.doc_id}/` : null
+      }));
+
       return {
         answer,
-        sources
+        sources:sourcesWithLinks
       };
     } catch (error) {
       console.error('Error in askQuestion:', error);

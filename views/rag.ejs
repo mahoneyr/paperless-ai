@@ -244,6 +244,12 @@
             margin-bottom: 0.25rem;
         }
 
+        .source-title .source-link {
+            color: green; /* Simple link color */
+            text-decoration: underline; /* Standard underline */
+            font-weight: bold;
+        }
+
         .source-meta {
             display: flex;
             justify-content: space-between;
@@ -1148,10 +1154,13 @@
                 sources.forEach((source, index) => {
                     const date = source.date ? new Date(source.date).toLocaleDateString('en-US') : 'Unknown';
                     const hidden = index > 0 ? ' hidden' : '';
-                    
+                    const titleContent = source.link 
+                        ? `<a href="${source.link}" target="_blank" class="source-link">${source.title || 'Unknown Title'}</a>` 
+                        : (source.title || 'Unknown Title');
+
                     html += `
                         <div class="source${hidden}" data-index="${index}">
-                            <div class="source-title">${source.title || 'Unknown Title'}</div>
+                            <div class="source-title">${titleContent}</div>
                             <p>${source.snippet || 'No excerpt available'}</p>
                             <div class="source-meta">
                                 <span>${source.correspondent || 'Unknown Sender'}</span>

@@ -54,12 +54,13 @@ logger.info(f"Loaded PAPERLESS_HOST: {os.getenv('PAPERLESS_HOST')}")
 logger.info(f"Loaded PAPERLESS_API_TOKEN: {'[SET]' if os.getenv('PAPERLESS_API_TOKEN') else '[NOT SET]'}")
 
 # Constants
+# Constants
 DOCUMENTS_FILE = "./data/documents.json"
 CHROMADB_DIR = "./data/chromadb"
 BM25_FILE = "./data/bm25_index.pkl"
 STATE_FILE = "./data/system_state.json"
-EMBEDDING_MODEL_NAME = "paraphrase-multilingual-MiniLM-L12-v2"
-CROSS_ENCODER_MODEL_NAME = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+EMBEDDING_MODEL_NAME = os.getenv("RAGZ_EMBEDDING_MODEL", "paraphrase-multilingual-MiniLM-L12-v2")
+CROSS_ENCODER_MODEL_NAME = os.getenv("RAGZ_CROSS_ENCODER_MODEL", "cross-encoder/ms-marco-MiniLM-L-6-v2")
 COLLECTION_NAME = "documents"
 BM25_WEIGHT = 0.3
 SEMANTIC_WEIGHT = 0.7

@@ -329,7 +329,7 @@ class DataManager:
         while has_next:
             logger.info(f"Fetching page {page}")
             try:
-                url = f"{self.paperless_url}/api/documents/?page={page}&page_size=1000"
+                url = f"{self.paperless_url}/api/documents/?page={page}&page_size=100"
                 logger.info(f"Making request to: {url}")
                 
                 response = requests.get(
@@ -654,7 +654,7 @@ class DataManager:
     def _add_documents_to_chroma(self, collection, documents):
         """Add documents to ChromaDB collection"""
         # We process in batches to avoid memory issues
-        batch_size = 500
+        batch_size = 100
         total_docs = len(documents)
         
         for i in range(0, total_docs, batch_size):

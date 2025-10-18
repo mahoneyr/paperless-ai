@@ -7,6 +7,8 @@ const paperlessService = require('./paperlessService');
 class RagService {
   constructor() {
     this.baseUrl = process.env.RAG_SERVICE_URL || 'http://localhost:8000';
+    // Check environment variable for small RAG mode
+    this.useSmallRag = process.env.SMALL_RAG === 'true';
   }
 
   /**
@@ -63,10 +65,11 @@ class RagService {
       
       const { context, sources } = response.data;
       
-      // 2. Fetch full content for each source document using doc_id
       let enhancedContext = context;
       
-      if (sources && sources.length > 0) {
+      // 2. Conditionally fetch full content for each source document using doc_id
+      // ONLY if SMALL_RAG is NOT set to 'true'
+      if (!this.useSmallRag && sources && sources.length > 0) {
         // Fetch full document content for each source
         const fullDocContents = await Promise.all(
           sources.map(async (source) => {
@@ -87,7 +90,7 @@ class RagService {
         enhancedContext = context + '\n\n' + fullDocContents.filter(content => content).join('\n\n');
       }
       
-      // 3. Use AI service to generate an answer based on the enhanced context
+      // 3. Use AI service to generate an answer based on the (potentially enhanced) context
       const aiService = AIServiceFactory.getService();
       
       // Create a language-agnostic prompt that works in any language

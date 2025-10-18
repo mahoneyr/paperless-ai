@@ -55,10 +55,13 @@ class RagService {
    */
   async askQuestion(question) {
     try {
+      // Determine the maximum number of sources to use from environment variable, default to 5
+      const maxSources = parseInt(process.env.RAG_SOURCES, 10) || 5;
+      
       // 1. Get context from the RAG service
       const response = await axios.post(`${this.baseUrl}/context`, { 
         question,
-        max_sources: 5
+        max_sources: maxSources
       });
       
       const { context, sources } = response.data;

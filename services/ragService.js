@@ -32,9 +32,6 @@ class RagService {
     this.paperlessBaseUrl = process.env.PAPERLESS_BASE_URL || 'http://localhost:8080';
     this.aiService = AIServiceFactory.getService();
 <<<<<<< Updated upstream
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
 >>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
@@ -134,25 +131,10 @@ class RagService {
     try {
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
-<<<<<<< Updated upstream
       // 1. Get context from the RAG service
       const response = await axios.post(`${this.baseUrl}/context`, { 
         question,
         max_sources: 5
-=======
-      // Step 1: Extract filters from the natural language question
-      const filters = await this._extractMetadata(question);
-
-      // Determine the maximum number of sources to use from environment variable, default to 5
-      const maxSources = parseInt(process.env.RAG_SOURCES, 10) || 5;
-      
-      // Step 2: Get context from the RAG service, applying the extracted filters
-      const response = await axios.post(`${this.baseUrl}/context`, { 
-        question,
-        max_sources: maxSources,
-        // Pass extracted metadata filters to the RAG service context endpoint
-        filters: filters 
->>>>>>> Stashed changes
 =======
       // Step 1: Extract filters from the natural language question
       const filters = await this._extractMetadata(question);
@@ -240,10 +222,7 @@ class RagService {
       
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
-<<<<<<< Updated upstream
 =======
-=======
->>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
       // Step 5: Modify sources to include the link to the original Paperless document

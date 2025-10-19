@@ -4,10 +4,78 @@ const config = require('../config/config');
 const AIServiceFactory = require('./aiServiceFactory');
 const paperlessService = require('./paperlessService');
 
+// Define the JSON schema for metadata extraction
+const METADATA_SCHEMA = {
+    type: "OBJECT",
+    properties: {
+        correspondent: {
+            type: "STRING",
+            description: "The name of the entity or company associated with the document (e.g., 'Talbots', 'CVS', 'IRS'). If not found, use a null value."
+        },
+        year: {
+            type: "STRING",
+            description: "The four-digit year mentioned in the query (e.g., '2024', '2025'). If a specific date or date range is mentioned, extract the most relevant single year. If not found, use a null value."
+        },
+        document_type: {
+            type: "STRING",
+            description: "The type of document mentioned (e.g., 'Receipt', 'Invoice', 'Contract', 'Medical Bill'). If not found, use a null value."
+        }
+    },
+    propertyOrdering: ["correspondent", "year", "document_type"]
+};
+
 class RagService {
   constructor() {
     this.baseUrl = process.env.RAG_SERVICE_URL || 'http://localhost:8000';
+    this.paperlessBaseUrl = process.env.PAPERLESS_BASE_URL || 'http://localhost:8080';
+    this.aiService = AIServiceFactory.getService();
   }
+  
+  /**
+   * Internal method to extract structured metadata (filters) from a natural language query
+   * using the LLM's structured output capability.
+   * @param {string} query - The user's question or search query.
+   * @returns {Promise<Object>} - An object containing extracted filters (e.g., {correspondent: 'Talbots', year: '2025'}).
+   * @private
+   */
+  async _extractMetadata(query) {
+    const systemPrompt = `
+        You are an expert query parser. Your sole task is to analyze the user's question and extract three key metadata fields: correspondent, year, and document_type.
+        
+        Follow these rules strictly:
+        1. Use only the information explicitly present in the user's question.
+        2. If a field's value is not found or cannot be determined, set its value to 'null' (as a string).
+        3. Do not invent information.
+        4. The output must be a valid JSON object matching the provided schema.
+        `;
+
+    try {
+        const jsonString = await this.aiService.generateStructuredText(
+            systemPrompt, 
+            query, 
+            METADATA_SCHEMA
+        );
+        
+        let metadata = JSON.parse(jsonString);
+
+        // Clean up: convert 'null' string values to actual nulls and remove them
+        // This makes the filter object cleaner before passing to the RAG service
+        const filters = {};
+        for (const [key, value] of Object.entries(metadata)) {
+            if (value !== 'null' && value !== null && value !== undefined && value !== "") {
+                filters[key] = value;
+            }
+        }
+
+        console.log('Extracted Filters:', filters);
+        return filters;
+    } catch (error) {
+        console.error('Error extracting metadata from query. Proceeding without filters:', error);
+        // Fallback: Return empty object to proceed with un-filtered search
+        return {}; 
+    }
+  }
+
 
   /**
    * Check if the RAG service is available and ready
@@ -55,15 +123,23 @@ class RagService {
    */
   async askQuestion(question) {
     try {
-      // 1. Get context from the RAG service
+      // Step 1: Extract filters from the natural language question
+      const filters = await this._extractMetadata(question);
+
+      // Determine the maximum number of sources to use from environment variable, default to 5
+      const maxSources = parseInt(process.env.RAG_SOURCES, 10) || 5;
+      
+      // Step 2: Get context from the RAG service, applying the extracted filters
       const response = await axios.post(`${this.baseUrl}/context`, { 
         question,
-        max_sources: 5
+        max_sources: maxSources,
+        // Pass extracted metadata filters to the RAG service context endpoint
+        filters: filters 
       });
       
       const { context, sources } = response.data;
       
-      // 2. Fetch full content for each source document using doc_id
+      // Step 3: Fetch full content for each source document using doc_id
       let enhancedContext = context;
       
       if (sources && sources.length > 0) {
@@ -87,8 +163,7 @@ class RagService {
         enhancedContext = context + '\n\n' + fullDocContents.filter(content => content).join('\n\n');
       }
       
-      // 3. Use AI service to generate an answer based on the enhanced context
-      const aiService = AIServiceFactory.getService();
+      // Step 4: Use AI service to generate an answer based on the enhanced context
       
       // Create a language-agnostic prompt that works in any language
       const prompt = `
@@ -111,15 +186,21 @@ class RagService {
 
       let answer;
       try {
-        answer = await aiService.generateText(prompt);
+        answer = await this.aiService.generateText(prompt);
       } catch (error) {
         console.error('Error generating answer with AI service:', error);
         answer = "An error occurred while generating an answer. Please try again later.";
       }
       
+      // Step 5: Modify sources to include the link to the original Paperless document
+      const sourcesWithLinks = sources.map(source => ({
+        ...source,
+        link: source.doc_id ? `${this.paperlessBaseUrl}/documents/${source.doc_id}/` : null
+      }));
+
       return {
         answer,
-        sources
+        sources:sourcesWithLinks
       };
     } catch (error) {
       console.error('Error in askQuestion:', error);
@@ -194,8 +275,7 @@ class RagService {
    */
   async getAIStatus() {
     try {
-      const aiService = AIServiceFactory.getService();
-      const status = await aiService.checkStatus();
+      const status = await this.aiService.checkStatus();
       return status;
     } catch (error) {
       console.error('Error checking AI service status:', error);

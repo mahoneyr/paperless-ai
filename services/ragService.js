@@ -130,6 +130,7 @@ class RagService {
       const maxSources = parseInt(process.env.RAG_SOURCES, 10) || 5;
       
       // Step 2: Get context from the RAG service, applying the extracted filters
+      // The RAG service is expected to return the most relevant document chunks as 'context'.
       const response = await axios.post(`${this.baseUrl}/context`, { 
         question,
         max_sources: maxSources,
@@ -139,31 +140,9 @@ class RagService {
       
       const { context, sources } = response.data;
       
-      // Step 3: Fetch full content for each source document using doc_id
-      let enhancedContext = context;
-      
-      if (sources && sources.length > 0) {
-        // Fetch full document content for each source
-        const fullDocContents = await Promise.all(
-          sources.map(async (source) => {
-            if (source.doc_id) {
-              try {
-                const fullContent = await paperlessService.getDocumentContent(source.doc_id);
-                return `Full document content for ${source.title || 'Document ' + source.doc_id}:\n${fullContent}`;
-              } catch (error) {
-                console.error(`Error fetching content for document ${source.doc_id}:`, error.message);
-                return '';
-              }
-            }
-            return '';
-          })
-        );
-        
-        // Combine original context with full document contents
-        enhancedContext = context + '\n\n' + fullDocContents.filter(content => content).join('\n\n');
-      }
-      
-      // Step 4: Use AI service to generate an answer based on the enhanced context
+      // Step 3: Use AI service to generate an answer based ONLY on the context
+      // (The previous problematic code that fetched full document content is removed here)
+      const enhancedContext = context;
       
       // Create a language-agnostic prompt that works in any language
       const prompt = `
@@ -173,12 +152,12 @@ class RagService {
 
         Question: ${question}
 
-        Context from relevant documents:
+        Context from relevant document chunks:
         ${enhancedContext}
 
         Important instructions:
-        - Use ONLY information from the provided documents
-        - If the answer is not contained in the documents, respond: "This information is not contained in the documents." (in the same language as the question)
+        - Use ONLY information from the provided document chunks
+        - If the answer is not contained in the document chunks, respond: "This information is not contained in the documents." (in the same language as the question)
         - Avoid assumptions or speculation beyond the given context
         - Answer in the same language as the question was asked
         - Do not mention document numbers or source references, answer as if it were a natural conversation
@@ -192,7 +171,7 @@ class RagService {
         answer = "An error occurred while generating an answer. Please try again later.";
       }
       
-      // Step 5: Modify sources to include the link to the original Paperless document
+      // Step 4: Modify sources to include the link to the original Paperless document
       const sourcesWithLinks = sources.map(source => ({
         ...source,
         link: source.doc_id ? `${this.paperlessBaseUrl}/documents/${source.doc_id}/` : null

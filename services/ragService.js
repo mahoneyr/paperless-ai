@@ -126,14 +126,18 @@ class RagService {
       // Step 1: Extract filters from the natural language question
       const filters = await this._extractMetadata(question);
 
-      // Determine the maximum number of sources to use from environment variable, default to 5
+      // Determine the maximum number of sources to use (default 5)
       const maxSources = parseInt(process.env.RAG_SOURCES, 10) || 5;
       
-      // Step 2: Get context from the RAG service, applying the extracted filters
-      // The RAG service is expected to return the most relevant document chunks as 'context'.
+      // NEW: Determine the maximum size of the document chunk to retrieve (default 2000 characters)
+      // This increases the length of the snippet associated with each source.
+      const maxChunkSize = parseInt(process.env.RAG_CHUNK_SIZE, 10) || 2000;
+      
+      // Step 2: Get context from the RAG service, applying the extracted filters and new chunk size
       const response = await axios.post(`${this.baseUrl}/context`, { 
         question,
         max_sources: maxSources,
+        max_chunk_size: maxChunkSize, // Added parameter
         // Pass extracted metadata filters to the RAG service context endpoint
         filters: filters 
       });
@@ -141,7 +145,6 @@ class RagService {
       const { context, sources } = response.data;
       
       // Step 3: Use AI service to generate an answer based ONLY on the context
-      // (The previous problematic code that fetched full document content is removed here)
       const enhancedContext = context;
       
       // Create a language-agnostic prompt that works in any language
